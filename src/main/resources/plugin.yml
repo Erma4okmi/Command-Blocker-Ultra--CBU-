@@ -1,0 +1,23 @@
+name: CommandBlockerUltra
+version: 1.12
+main: com.mishkaworld.cbu.CommandBlockerUltra
+api-version: 1.21
+author: Misha Ermakov
+description: Advanced command blocking plugin for Minecraft servers
+website: https://mishkaworld.com
+
+# Команды плагина (будут добавлены позже)
+commands:
+  cbu:
+    description: Основная команда Command Blocker Ultra
+    usage: /cbu <subcommand>
+    permission: cbu.admin
+
+# Права доступа
+permissions:
+  cbu.admin:
+    description: Полный доступ к Command Blocker Ultra
+    default: op
+  cbu.reload:
+    description: Возможность перезагружать конфигурацию
+    default: op 

@@ -1,0 +1,17 @@
+error-message: "&cКоманды отключены на этом сервере!"
+
+debug-mode: true
+log-mode: true
+
+commands:
+  cmi:
+    subcommands:
+      gm:
+        permission: cmi.command.gm
+        arguments:
+          arg#1:
+            lists:
+              survival: cmi.command.gm.survival
+              creative: cmi.command.gm.creative
+          arg#2:
+            permission: cmi.command.gm.others 
