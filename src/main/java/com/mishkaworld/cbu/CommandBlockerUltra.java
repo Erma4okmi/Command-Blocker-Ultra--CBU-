@@ -9,6 +9,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.event.server.ServerCommandEvent;
+import org.bukkit.event.HandlerList;
 
 import java.util.Arrays;
 import java.util.List;
@@ -26,44 +27,48 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
+        initializePlugin();
+    }
+
+    private void initializePlugin() {
         logger = getLogger();
         logger.info("Command Blocker Ultra v1.12 загружается...");
         
-        // Сохраняем конфиг по умолчанию только если его нет
+        setupDataFolder();
+        setupConfiguration();
+        initializeComponents();
+        registerEventListeners();
+        
+        logger.info("Command Blocker Ultra v1.12 успешно загружен!");
+    }
+
+    private void setupDataFolder() {
         if (!getDataFolder().exists()) {
             getDataFolder().mkdirs();
         }
-        
+    }
+
+    private void setupConfiguration() {
         File configFile = new File(getDataFolder(), "config.yml");
         if (!configFile.exists()) {
             saveDefaultConfig();
         }
-        
-        // Перезагружаем конфиг из файла
         reloadConfig();
-        
-        // Инициализация отладочного класса
-        debugCommands = new DebugCommands(getConfig(), this);
-        
-        // Инициализация LogManager
-        logManager = new LogManager(getConfig(), this);
-        
-        // Инициализация проверки прав
-        permissionChecker = new PermissionChecker(getConfig());
-        
-        // Регистрируем слушатели событий
-        getServer().getPluginManager().registerEvents(this, this);
-        
-        // Регистрируем блокировщик команд
-        commandBlocker = new CommandBlocker(this, permissionChecker);
-        getServer().getPluginManager().registerEvents(commandBlocker, this);
-        
-        // Регистрируем менеджер автодополнения
-        tabCompleteManager = new TabCompleteManager(permissionChecker, getConfig(), this);
-        getServer().getPluginManager().registerEvents(tabCompleteManager, this);
-        
-        logger.info("Command Blocker Ultra v1.12 успешно загружен!");
         logger.info("Конфиг загружен из: " + configFile.getAbsolutePath());
+    }
+
+    private void initializeComponents() {
+        debugCommands = new DebugCommands(getConfig(), this);
+        logManager = new LogManager(getConfig(), this);
+        permissionChecker = new PermissionChecker(getConfig());
+        commandBlocker = new CommandBlocker(this, permissionChecker);
+        tabCompleteManager = new TabCompleteManager(permissionChecker, getConfig(), this);
+    }
+
+    private void registerEventListeners() {
+        getServer().getPluginManager().registerEvents(this, this);
+        getServer().getPluginManager().registerEvents(commandBlocker, this);
+        getServer().getPluginManager().registerEvents(tabCompleteManager, this);
     }
 
     @Override
@@ -72,62 +77,39 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
         logger.info("Command Blocker Ultra v1.12 успешно выгружен!");
     }
 
-    /**
-     * Обработчик команд игроков
-     */
     @EventHandler
     public void onPlayerCommand(PlayerCommandPreprocessEvent event) {
         Player player = event.getPlayer();
         String fullCommand = event.getMessage();
         
-        // Получаем и разбираем команду
         CommandInfo commandInfo = parseCommand(fullCommand);
-        
-        // Проверяем права
         PermissionChecker.PermissionResult permissionResult = permissionChecker.checkPermission(player, commandInfo);
         
-        // Логируем детальную информацию только если включен debug-mode
-        if (getConfig().getBoolean("debug-mode", true)) {
-            debugCommands.logDetailedCommandInfo(player.getName(), commandInfo, permissionResult);
-        }
-        
-        // Выполняем детальный анализ команды только если включен log-mode
-        if (getConfig().getBoolean("log-mode", true)) {
-            CommandAnalyzer.CommandAnalysis analysis = CommandAnalyzer.analyzeCommand(fullCommand, player.getName());
-            logManager.log(analysis.getFormattedInfo());
-        }
+        logCommandInfo(player.getName(), commandInfo, permissionResult, fullCommand);
     }
 
-    /**
-     * Обработчик консольных команд
-     */
     @EventHandler
     public void onServerCommand(ServerCommandEvent event) {
         String fullCommand = event.getCommand();
         CommandInfo commandInfo = parseCommand("/" + fullCommand);
         
-        // Логируем через DebugCommands только если включен debug-mode
+        logCommandInfo("CONSOLE", commandInfo, null, "/" + fullCommand);
+    }
+
+    private void logCommandInfo(String playerName, CommandInfo commandInfo, 
+                              PermissionChecker.PermissionResult permissionResult, String fullCommand) {
         if (getConfig().getBoolean("debug-mode", true)) {
-            debugCommands.logAnalysisInfo("CONSOLE", CommandAnalyzer.analyzeCommand("/" + fullCommand, "CONSOLE"));
+            debugCommands.logDetailedCommandInfo(playerName, commandInfo, permissionResult);
         }
         
-        // Выполняем детальный анализ команды только если включен log-mode
         if (getConfig().getBoolean("log-mode", true)) {
-            CommandAnalyzer.CommandAnalysis analysis = CommandAnalyzer.analyzeCommand("/" + fullCommand, "CONSOLE");
+            CommandAnalyzer.CommandAnalysis analysis = CommandAnalyzer.analyzeCommand(fullCommand, playerName);
             logManager.log(analysis.getFormattedInfo());
         }
     }
 
-    /**
-     * Разбирает команду на части
-     * @param fullCommand Полная команда (например: "/tp player1 player2")
-     * @return Объект с информацией о команде
-     */
     public static CommandInfo parseCommand(String fullCommand) {
-        // Убираем начальный слеш если есть
         String command = fullCommand.startsWith("/") ? fullCommand.substring(1) : fullCommand;
-        
-        // Разбиваем команду на части
         String[] parts = command.split("\\s+");
         
         if (parts.length == 0) {
@@ -140,9 +122,6 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
         return new CommandInfo(mainCommand, arguments, fullCommand);
     }
 
-    /**
-     * Класс для хранения информации о команде
-     */
     public static class CommandInfo {
         private final String mainCommand;
         private final String[] arguments;
@@ -150,7 +129,7 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
 
         public CommandInfo(String mainCommand, String[] arguments, String fullCommand) {
             this.mainCommand = mainCommand;
-            this.arguments = arguments;
+            this.arguments = arguments.clone(); // Защита от изменения
             this.fullCommand = fullCommand;
         }
 
@@ -159,7 +138,7 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
         }
 
         public String[] getArguments() {
-            return arguments;
+            return arguments.clone(); // Защита от изменения
         }
 
         public String getFullCommand() {
@@ -171,10 +150,7 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
         }
 
         public String getArgument(int index) {
-            if (index >= 0 && index < arguments.length) {
-                return arguments[index];
-            }
-            return null;
+            return (index >= 0 && index < arguments.length) ? arguments[index] : null;
         }
 
         public boolean hasArguments() {
@@ -200,6 +176,12 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
         public String[] getSubCommandArguments() {
             return arguments.length > 1 ? Arrays.copyOfRange(arguments, 1, arguments.length) : new String[0];
         }
+
+        @Override
+        public String toString() {
+            return String.format("CommandInfo{mainCommand='%s', arguments=%s, fullCommand='%s'}", 
+                               mainCommand, Arrays.toString(arguments), fullCommand);
+        }
     }
 
     @Override
@@ -208,17 +190,7 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
             if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
                 if (sender.hasPermission("cbu.reload")) {
                     // Перезагружаем конфиг
-                    reloadConfig();
-                    
-                    // Пересоздаем все компоненты с новым конфигом
-                    permissionChecker = new PermissionChecker(getConfig());
-                    
-                    // Отменяем регистрацию старого TabCompleteManager
-                    org.bukkit.event.HandlerList.unregisterAll(tabCompleteManager);
-                    
-                    // Создаем и регистрируем новый TabCompleteManager
-                    tabCompleteManager = new TabCompleteManager(permissionChecker, getConfig(), this);
-                    getServer().getPluginManager().registerEvents(tabCompleteManager, this);
+                    reloadPluginConfig();
                     
                     sender.sendMessage("§aКонфигурация перезагружена!");
                     logger.info("Конфигурация перезагружена игроком: " + sender.getName());
@@ -233,5 +205,31 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
             return true;
         }
         return false;
+    }
+
+    public void reloadPluginConfig() {
+        reloadConfig();
+        // Пересоздаём все объекты, зависящие от конфига
+        permissionChecker = new PermissionChecker(getConfig());
+        logManager = new LogManager(getConfig(), this);
+        debugCommands = new DebugCommands(getConfig(), this);
+
+        // Перерегистрируем TabCompleteManager
+        if (tabCompleteManager != null) {
+            HandlerList.unregisterAll(tabCompleteManager);
+        }
+        tabCompleteManager = new TabCompleteManager(permissionChecker, getConfig(), this);
+        getServer().getPluginManager().registerEvents(tabCompleteManager, this);
+
+        // Перерегистрируем CommandBlocker
+        if (commandBlocker != null) {
+            HandlerList.unregisterAll(commandBlocker);
+        }
+        commandBlocker = new CommandBlocker(this, permissionChecker);
+        getServer().getPluginManager().registerEvents(commandBlocker, this);
+    }
+
+    public LogManager getLogManager() {
+        return logManager;
     }
 } 

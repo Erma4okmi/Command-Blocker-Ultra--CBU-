@@ -2,6 +2,7 @@ package com.mishkaworld.cbu;
 
 import org.bukkit.entity.Player;
 import java.util.Arrays;
+import java.util.Date;
 
 /**
  * Класс для детального анализа команд
@@ -13,7 +14,6 @@ public class CommandAnalyzer {
      */
     public static CommandAnalysis analyzeCommand(String fullCommand, String sender) {
         CommandBlockerUltra.CommandInfo commandInfo = CommandBlockerUltra.parseCommand(fullCommand);
-        
         return new CommandAnalysis(commandInfo, sender);
     }
 
@@ -23,13 +23,21 @@ public class CommandAnalyzer {
     public static CommandType getCommandType(CommandBlockerUltra.CommandInfo commandInfo) {
         String mainCommand = commandInfo.getMainCommand();
         
-        if (mainCommand.startsWith("minecraft:") || mainCommand.startsWith("bukkit:")) {
+        if (isVanillaCommand(mainCommand)) {
             return CommandType.VANILLA;
-        } else if (mainCommand.contains(":")) {
+        } else if (isPluginCommand(mainCommand)) {
             return CommandType.PLUGIN;
         } else {
             return CommandType.CUSTOM;
         }
+    }
+
+    private static boolean isVanillaCommand(String command) {
+        return command.startsWith("minecraft:") || command.startsWith("bukkit:");
+    }
+
+    private static boolean isPluginCommand(String command) {
+        return command.contains(":");
     }
 
     /**
@@ -74,15 +82,20 @@ public class CommandAnalyzer {
         }
 
         public String getFormattedInfo() {
-            StringBuilder sb = new StringBuilder();
-            sb.append("=== Анализ команды ===\n");
-            sb.append("Отправитель: ").append(sender).append("\n");
-            sb.append("Команда: ").append(commandInfo.getMainCommand()).append("\n");
-            sb.append("Аргументы: ").append(Arrays.toString(commandInfo.getArguments())).append("\n");
-            sb.append("Тип: ").append(commandType).append("\n");
-            sb.append("Время: ").append(new java.util.Date(timestamp)).append("\n");
-            sb.append("=====================");
-            return sb.toString();
+            return String.format(
+                "=== Анализ команды ===\n" +
+                "Отправитель: %s\n" +
+                "Команда: %s\n" +
+                "Аргументы: %s\n" +
+                "Тип: %s\n" +
+                "Время: %s\n" +
+                "=====================",
+                sender,
+                commandInfo.getMainCommand(),
+                Arrays.toString(commandInfo.getArguments()),
+                commandType,
+                new Date(timestamp)
+            );
         }
     }
 
