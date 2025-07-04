@@ -13,6 +13,7 @@ import org.bukkit.event.server.ServerCommandEvent;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
+import java.io.File;
 
 public class CommandBlockerUltra extends JavaPlugin implements Listener {
 
@@ -21,17 +22,31 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
     private CommandBlocker commandBlocker;
     private PermissionChecker permissionChecker;
     private TabCompleteManager tabCompleteManager;
+    private LogManager logManager;
 
     @Override
     public void onEnable() {
         logger = getLogger();
         logger.info("Command Blocker Ultra v1.12 загружается...");
         
-        // Сохраняем конфиг по умолчанию
-        saveDefaultConfig();
+        // Сохраняем конфиг по умолчанию только если его нет
+        if (!getDataFolder().exists()) {
+            getDataFolder().mkdirs();
+        }
+        
+        File configFile = new File(getDataFolder(), "config.yml");
+        if (!configFile.exists()) {
+            saveDefaultConfig();
+        }
+        
+        // Перезагружаем конфиг из файла
+        reloadConfig();
         
         // Инициализация отладочного класса
-        debugCommands = new DebugCommands(logger);
+        debugCommands = new DebugCommands(getConfig(), this);
+        
+        // Инициализация LogManager
+        logManager = new LogManager(getConfig(), this);
         
         // Инициализация проверки прав
         permissionChecker = new PermissionChecker(getConfig());
@@ -44,10 +59,11 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(commandBlocker, this);
         
         // Регистрируем менеджер автодополнения
-        tabCompleteManager = new TabCompleteManager(permissionChecker);
+        tabCompleteManager = new TabCompleteManager(permissionChecker, getConfig(), this);
         getServer().getPluginManager().registerEvents(tabCompleteManager, this);
         
         logger.info("Command Blocker Ultra v1.12 успешно загружен!");
+        logger.info("Конфиг загружен из: " + configFile.getAbsolutePath());
     }
 
     @Override
@@ -78,7 +94,7 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
         // Выполняем детальный анализ команды только если включен log-mode
         if (getConfig().getBoolean("log-mode", true)) {
             CommandAnalyzer.CommandAnalysis analysis = CommandAnalyzer.analyzeCommand(fullCommand, player.getName());
-            logger.info(analysis.getFormattedInfo());
+            logManager.log(analysis.getFormattedInfo());
         }
     }
 
@@ -92,13 +108,13 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
         
         // Логируем через DebugCommands только если включен debug-mode
         if (getConfig().getBoolean("debug-mode", true)) {
-            debugCommands.logCommandInfo("CONSOLE", commandInfo);
+            debugCommands.logAnalysisInfo("CONSOLE", CommandAnalyzer.analyzeCommand("/" + fullCommand, "CONSOLE"));
         }
         
         // Выполняем детальный анализ команды только если включен log-mode
         if (getConfig().getBoolean("log-mode", true)) {
             CommandAnalyzer.CommandAnalysis analysis = CommandAnalyzer.analyzeCommand("/" + fullCommand, "CONSOLE");
-            logger.info(analysis.getFormattedInfo());
+            logManager.log(analysis.getFormattedInfo());
         }
     }
 
@@ -184,5 +200,38 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
         public String[] getSubCommandArguments() {
             return arguments.length > 1 ? Arrays.copyOfRange(arguments, 1, arguments.length) : new String[0];
         }
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("cbu")) {
+            if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
+                if (sender.hasPermission("cbu.reload")) {
+                    // Перезагружаем конфиг
+                    reloadConfig();
+                    
+                    // Пересоздаем все компоненты с новым конфигом
+                    permissionChecker = new PermissionChecker(getConfig());
+                    
+                    // Отменяем регистрацию старого TabCompleteManager
+                    org.bukkit.event.HandlerList.unregisterAll(tabCompleteManager);
+                    
+                    // Создаем и регистрируем новый TabCompleteManager
+                    tabCompleteManager = new TabCompleteManager(permissionChecker, getConfig(), this);
+                    getServer().getPluginManager().registerEvents(tabCompleteManager, this);
+                    
+                    sender.sendMessage("§aКонфигурация перезагружена!");
+                    logger.info("Конфигурация перезагружена игроком: " + sender.getName());
+                    return true;
+                } else {
+                    sender.sendMessage("§cНет прав на перезагрузку конфигурации!");
+                    return true;
+                }
+            }
+            sender.sendMessage("§eCommand Blocker Ultra v1.12");
+            sender.sendMessage("§eИспользование: /cbu reload");
+            return true;
+        }
+        return false;
     }
 } 

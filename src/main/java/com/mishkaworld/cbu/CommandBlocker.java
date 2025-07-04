@@ -36,12 +36,13 @@ public class CommandBlocker implements Listener {
         // Проверяем права через PermissionChecker
         PermissionChecker.PermissionResult result = permissionChecker.checkPermission(player, commandInfo);
         
-        // Если команда заблокирована, отменяем её выполнение
+        // Если команда заблокирована или не найдена в конфиге, отменяем её выполнение
         if (!result.allowed) {
             event.setCancelled(true);
             String errorMessage = plugin.getConfig().getString("error-message", "&cКоманды отключены на этом сервере!");
             player.sendMessage(org.bukkit.ChatColor.translateAlternateColorCodes('&', errorMessage));
         }
+        // Если команда разрешена (result.allowed = true), то не блокируем её
     }
 
     // Блокировка команд из консоли (теперь не блокируем)
@@ -56,15 +57,35 @@ public class CommandBlocker implements Listener {
         // Очищаем все команды
         event.getCommands().clear();
         
-        // Добавляем субкоманды как отдельные команды
         Player player = event.getPlayer();
+        
+        // Добавляем обычные команды
         for (String mainCommand : permissionChecker.getCommandConfigs().keySet()) {
             PermissionChecker.CommandConfig commandConfig = permissionChecker.getCommandConfigs().get(mainCommand);
             
+            // Добавляем основную команду, если есть права
+            if (commandConfig.permission == null || commandConfig.permission.equalsIgnoreCase("none") || player.hasPermission(commandConfig.permission)) {
+                event.getCommands().add(mainCommand);
+            }
+            
+            // Добавляем алиасы, если есть права
+            if (commandConfig.aliases != null) {
+                for (String alias : commandConfig.aliases) {
+                    if (alias != null && (commandConfig.permission == null || commandConfig.permission.equalsIgnoreCase("none") || player.hasPermission(commandConfig.permission))) {
+                        event.getCommands().add(alias);
+                    }
+                }
+            }
+        }
+        
+        // Добавляем субкоманды из супер-команд
+        for (String mainCommand : permissionChecker.getSuperCommandConfigs().keySet()) {
+            PermissionChecker.SuperCommandConfig superCommandConfig = permissionChecker.getSuperCommandConfigs().get(mainCommand);
+            
             // Добавляем все субкоманды, на которые есть права
-            for (String subCommand : commandConfig.subcommands.keySet()) {
-                PermissionChecker.SubCommandConfig subConfig = commandConfig.subcommands.get(subCommand);
-                if (subConfig.permission == null || player.hasPermission(subConfig.permission)) {
+            for (String subCommand : superCommandConfig.subcommands.keySet()) {
+                PermissionChecker.SubCommandConfig subConfig = superCommandConfig.subcommands.get(subCommand);
+                if (subConfig.permission == null || subConfig.permission.equalsIgnoreCase("none") || player.hasPermission(subConfig.permission)) {
                     event.getCommands().add(subCommand);
                 }
             }

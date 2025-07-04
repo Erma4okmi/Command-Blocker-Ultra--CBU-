@@ -7,7 +7,9 @@ com/mishkaworld/cbu/PermissionChecker$ArgumentConfig.class
 com/mishkaworld/cbu/PermissionChecker$CommandConfig.class
 com/mishkaworld/cbu/CommandBlocker.class
 com/mishkaworld/cbu/TabCompleteManager.class
+com/mishkaworld/cbu/LogManager.class
 com/mishkaworld/cbu/PermissionChecker$SubCommandConfig.class
+com/mishkaworld/cbu/PermissionChecker$SuperCommandConfig.class
 com/mishkaworld/cbu/DebugCommands.class
 com/mishkaworld/cbu/CommandBlockerUltra.class
 com/mishkaworld/cbu/CommandAnalyzer$CommandAnalysis.class

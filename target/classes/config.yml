@@ -1,9 +1,24 @@
-error-message: "&cКоманды отключены на этом сервере!"
+error-message: "&cКоманды отключены на этом!"
 
 debug-mode: true
 log-mode: true
+file-mode: true
 
+# Обычные команды
 commands:
+  gamemode:
+    aliases: []
+    permission: cbu.allow.gamemode
+    arguments:
+      arg#1:
+        lists:
+          survival: cbu.allow.gamemode.survival
+          creative: cbu.allow.gamemode.creative
+      arg#2:
+        permission: none
+
+# Супер-команды (с субкомандами)
+super-commands:
   cmi:
     subcommands:
       gm:
@@ -14,4 +29,4 @@ commands:
               survival: cmi.command.gm.survival
               creative: cmi.command.gm.creative
           arg#2:
-            permission: cmi.command.gm.others 
+            permission: none
