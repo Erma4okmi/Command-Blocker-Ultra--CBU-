@@ -13,11 +13,9 @@ import java.util.Map;
 
 public class TabCompleteManager implements Listener {
     private final PermissionChecker permissionChecker;
-    private final LogManager logManager;
 
     public TabCompleteManager(PermissionChecker permissionChecker, FileConfiguration config, Plugin plugin) {
         this.permissionChecker = permissionChecker;
-        this.logManager = new LogManager(config, plugin);
     }
 
     @EventHandler
@@ -46,8 +44,6 @@ public class TabCompleteManager implements Listener {
         Player player = (Player) event.getSender();
         String command = parts[0].substring(1);
         
-        logManager.log("Обработка команды: '" + command + "' для игрока " + player.getName());
-        
         // Если это первая команда (только /), показываем все доступные команды и субкоманды
         if (parts.length == 1 && !endsWithSpace) {
             showAvailableCommands(event, player);
@@ -57,8 +53,6 @@ public class TabCompleteManager implements Listener {
         // Проверяем команды
         if (handleRegularCommands(event, parts, endsWithSpace, command, player)) return;
         if (handleSuperCommands(event, parts, endsWithSpace, command, player)) return;
-        
-        logManager.log("Команда '" + command + "' не найдена в конфиге");
     }
 
     private boolean handleRegularCommands(TabCompleteEvent event, String[] parts, boolean endsWithSpace, 
@@ -66,7 +60,6 @@ public class TabCompleteManager implements Listener {
         // Прямая проверка
         PermissionChecker.CommandConfig commandConfig = permissionChecker.getCommandConfigs().get(command);
         if (commandConfig != null) {
-            logManager.log("Найдена обычная команда: " + command);
             handleRegularCommandTabComplete(event, parts, endsWithSpace, commandConfig, player);
             return true;
         }
@@ -74,7 +67,6 @@ public class TabCompleteManager implements Listener {
         // Проверка алиасов
         for (PermissionChecker.CommandConfig config : permissionChecker.getCommandConfigs().values()) {
             if (config.hasAlias(command)) {
-                logManager.log("Найден алиас '" + command + "' для команды");
                 handleRegularCommandTabComplete(event, parts, endsWithSpace, config, player);
                 return true;
             }
@@ -88,14 +80,12 @@ public class TabCompleteManager implements Listener {
         // Прямая проверка
         for (PermissionChecker.SuperCommandConfig superConfig : permissionChecker.getSuperCommandConfigs().values()) {
             if (superConfig.getSubCommand(command) != null) {
-                logManager.log("Найдена субкоманда '" + command + "'");
                 handleSubCommandTabComplete(event, parts, endsWithSpace, superConfig.getSubCommand(command), player);
                 return true;
             }
             
             // Проверка алиасов
             if (superConfig.hasAlias(command)) {
-                logManager.log("Найден алиас '" + command + "' для супер-команды");
                 showAvailableSubCommands(event, player, superConfig);
                 return true;
             }
@@ -209,17 +199,11 @@ public class TabCompleteManager implements Listener {
             if (listKey == null) continue;
             
             boolean hasPermissionForValue = hasPermission(player, permission);
-            logManager.log("Проверка прав для значения '" + listKey + "': permission=" + permission + 
-                         ", hasPermission=" + hasPermissionForValue + ", player=" + player.getName());
             
             if (hasPermissionForValue) {
                 if (currentInput.isEmpty() || listKey.toLowerCase().startsWith(currentInput)) {
                     event.getCompletions().add(listKey);
-                    logManager.log("Добавлено значение '" + listKey + "' для игрока " + player.getName());
                 }
-            } else {
-                logManager.log("Игрок " + player.getName() + " не имеет прав на значение '" + listKey + 
-                             "' (permission: " + permission + ")");
             }
         }
     }

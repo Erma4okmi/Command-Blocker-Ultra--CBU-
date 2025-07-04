@@ -19,11 +19,9 @@ import java.io.File;
 public class CommandBlockerUltra extends JavaPlugin implements Listener {
 
     private Logger logger;
-    private DebugCommands debugCommands;
     private CommandBlocker commandBlocker;
     private PermissionChecker permissionChecker;
     private TabCompleteManager tabCompleteManager;
-    private LogManager logManager;
 
     @Override
     public void onEnable() {
@@ -58,8 +56,6 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
     }
 
     private void initializeComponents() {
-        debugCommands = new DebugCommands(getConfig(), this);
-        logManager = new LogManager(getConfig(), this);
         permissionChecker = new PermissionChecker(getConfig());
         commandBlocker = new CommandBlocker(this, permissionChecker);
         tabCompleteManager = new TabCompleteManager(permissionChecker, getConfig(), this);
@@ -79,33 +75,12 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerCommand(PlayerCommandPreprocessEvent event) {
-        Player player = event.getPlayer();
-        String fullCommand = event.getMessage();
-        
-        CommandInfo commandInfo = parseCommand(fullCommand);
-        PermissionChecker.PermissionResult permissionResult = permissionChecker.checkPermission(player, commandInfo);
-        
-        logCommandInfo(player.getName(), commandInfo, permissionResult, fullCommand);
+        // Пустой обработчик - вся логика в CommandBlocker
     }
 
     @EventHandler
     public void onServerCommand(ServerCommandEvent event) {
-        String fullCommand = event.getCommand();
-        CommandInfo commandInfo = parseCommand("/" + fullCommand);
-        
-        logCommandInfo("CONSOLE", commandInfo, null, "/" + fullCommand);
-    }
-
-    private void logCommandInfo(String playerName, CommandInfo commandInfo, 
-                              PermissionChecker.PermissionResult permissionResult, String fullCommand) {
-        if (getConfig().getBoolean("debug-mode", true)) {
-            debugCommands.logDetailedCommandInfo(playerName, commandInfo, permissionResult);
-        }
-        
-        if (getConfig().getBoolean("log-mode", true)) {
-            CommandAnalyzer.CommandAnalysis analysis = CommandAnalyzer.analyzeCommand(fullCommand, playerName);
-            logManager.log(analysis.getFormattedInfo());
-        }
+        // Пустой обработчик
     }
 
     public static CommandInfo parseCommand(String fullCommand) {
@@ -129,7 +104,7 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
 
         public CommandInfo(String mainCommand, String[] arguments, String fullCommand) {
             this.mainCommand = mainCommand;
-            this.arguments = arguments.clone(); // Защита от изменения
+            this.arguments = arguments.clone();
             this.fullCommand = fullCommand;
         }
 
@@ -138,7 +113,7 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
         }
 
         public String[] getArguments() {
-            return arguments.clone(); // Защита от изменения
+            return arguments.clone();
         }
 
         public String getFullCommand() {
@@ -186,50 +161,34 @@ public class CommandBlockerUltra extends JavaPlugin implements Listener {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (command.getName().equalsIgnoreCase("cbu")) {
+        if (label.equalsIgnoreCase("cbu")) {
             if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
                 if (sender.hasPermission("cbu.reload")) {
-                    // Перезагружаем конфиг
                     reloadPluginConfig();
-                    
                     sender.sendMessage("§aКонфигурация перезагружена!");
-                    logger.info("Конфигурация перезагружена игроком: " + sender.getName());
-                    return true;
                 } else {
-                    sender.sendMessage("§cНет прав на перезагрузку конфигурации!");
-                    return true;
+                    sender.sendMessage("§cУ вас нет прав для выполнения этой команды!");
                 }
+                return true;
             }
-            sender.sendMessage("§eCommand Blocker Ultra v1.12");
-            sender.sendMessage("§eИспользование: /cbu reload");
-            return true;
         }
         return false;
     }
 
     public void reloadPluginConfig() {
         reloadConfig();
-        // Пересоздаём все объекты, зависящие от конфига
         permissionChecker = new PermissionChecker(getConfig());
-        logManager = new LogManager(getConfig(), this);
-        debugCommands = new DebugCommands(getConfig(), this);
 
-        // Перерегистрируем TabCompleteManager
         if (tabCompleteManager != null) {
             HandlerList.unregisterAll(tabCompleteManager);
         }
         tabCompleteManager = new TabCompleteManager(permissionChecker, getConfig(), this);
         getServer().getPluginManager().registerEvents(tabCompleteManager, this);
 
-        // Перерегистрируем CommandBlocker
         if (commandBlocker != null) {
             HandlerList.unregisterAll(commandBlocker);
         }
         commandBlocker = new CommandBlocker(this, permissionChecker);
         getServer().getPluginManager().registerEvents(commandBlocker, this);
-    }
-
-    public LogManager getLogManager() {
-        return logManager;
     }
 } 

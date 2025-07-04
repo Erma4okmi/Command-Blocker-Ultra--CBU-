@@ -30,31 +30,11 @@ public class CommandBlocker implements Listener {
         Player player = event.getPlayer();
         String fullCommand = event.getMessage();
         
-        // Используем LogManager для логирования
-        if (plugin instanceof CommandBlockerUltra) {
-            LogManager logManager = ((CommandBlockerUltra) plugin).getLogManager();
-            logManager.log("DEBUG: CommandBlocker получил команду: '" + fullCommand + "' от " + player.getName());
-        }
-        
         CommandBlockerUltra.CommandInfo commandInfo = CommandBlockerUltra.parseCommand(fullCommand);
         PermissionChecker.PermissionResult result = permissionChecker.checkPermission(player, commandInfo);
         
-        if (plugin instanceof CommandBlockerUltra) {
-            LogManager logManager = ((CommandBlockerUltra) plugin).getLogManager();
-            logManager.log("DEBUG: Проверка прав для '" + fullCommand + "' -> allowed=" + result.allowed + ", message='" + result.message + "'");
-        }
-        
         if (!result.allowed) {
-            if (plugin instanceof CommandBlockerUltra) {
-                LogManager logManager = ((CommandBlockerUltra) plugin).getLogManager();
-                logManager.log("DEBUG: Блокируем команду '" + fullCommand + "' для " + player.getName());
-            }
             blockCommand(event, player);
-        } else {
-            if (plugin instanceof CommandBlockerUltra) {
-                LogManager logManager = ((CommandBlockerUltra) plugin).getLogManager();
-                logManager.log("DEBUG: Разрешаем команду '" + fullCommand + "' для " + player.getName());
-            }
         }
     }
 
